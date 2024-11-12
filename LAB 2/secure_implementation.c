@@ -6,6 +6,8 @@
 
 extern unsigned char passwd_hash[SHA256_DIGEST_LENGTH];
 
+//TODO: file signature verification https://pagefault.blog/2019/04/22/how-to-sign-and-verify-using-openssl/
+
 void readFile(char* fname, char* dest_string){
     FILE *fptr;
         // Open a file in read mode
