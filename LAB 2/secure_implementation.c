@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 
-
+#define MAX_INPUT_LENGTH 100
 
 extern unsigned char passwd_hash[SHA256_DIGEST_LENGTH];
 
@@ -15,7 +15,7 @@ void readFile(char* fname, char* dest_string){
     if(fptr != NULL) {
 
     // Read the content and print it
-    while(fgets(dest_string, 100, fptr)) {
+    while(fgets(dest_string, MAX_INPUT_LENGTH, fptr)) {
         1;
     }
 
@@ -36,14 +36,14 @@ int main(int argc, char * argv[]) {
 
 	unsigned char buffer[SHA256_DIGEST_LENGTH];
 
-	const size_t  sz = strnlen(argv[1], 40);
-	unsigned char in[40];
-    unsigned char salt[100];
-    unsigned char hash[100];
+	const size_t  sz = strnlen(argv[1], MAX_INPUT_LENGTH);
+	unsigned char in[MAX_INPUT_LENGTH];
+    unsigned char salt[MAX_INPUT_LENGTH];
+    unsigned char hash[MAX_INPUT_LENGTH];
     int return_value = 1;
-    memset(salt, 0, 100);
-    memset(hash, 0, 100);
-	memset(in, 0, 40);
+    memset(salt, 0, MAX_INPUT_LENGTH);
+    memset(hash, 0, MAX_INPUT_LENGTH);
+	memset(in, 0, MAX_INPUT_LENGTH);
 	memcpy(in, argv[1], sz);
     printf("You entered \"%s\".\n", argv[1]);
 
@@ -52,10 +52,10 @@ int main(int argc, char * argv[]) {
 
     printf("PASSWORD HASH:\n%s\n", hash);
     printf("SALT: %s\n", salt);
-    const size_t  sz_salt = strnlen(salt, 100);
+    const size_t  sz_salt = strnlen(salt, MAX_INPUT_LENGTH);
 
     //concat input string and hash
-    char salted_input[80];
+    char salted_input[MAX_INPUT_LENGTH*2];
     snprintf(salted_input, sizeof(salted_input), "%s%s", in, salt);
     printf("SALTED INPUT PASSWORD:\n%s\n", salted_input);
 
