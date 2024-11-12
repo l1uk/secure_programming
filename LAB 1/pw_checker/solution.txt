@@ -1,0 +1,1 @@
+A ficticious shared object file can be crafted with the desired hash, to make the code approve any password.
