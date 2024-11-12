@@ -1,0 +1,1 @@
+Decompiling the executable we can find the password hardcoded being WORDPASS.
