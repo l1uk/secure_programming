@@ -90,7 +90,7 @@ int main(int argc, char * argv[]) {
 		return 1;
 	}
 	const size_t  sz = strnlen(argv[1], MAX_INPUT_LENGTH);
-    unsigned char in[MAX_INPUT_LENGTH];
+    char in[MAX_INPUT_LENGTH];
     memset(in, 0, MAX_INPUT_LENGTH);
 	memcpy(in, argv[1], sz);
 
@@ -121,7 +121,7 @@ int main(int argc, char * argv[]) {
     printf("Signing hash\n");
     // Sign the hash
     unsigned char signature[RSA_size(rsa_private_key)];
-    int sig_len = RSA_private_encrypt(RSA_size(rsa_private_key), hash, signature, rsa_private_key, RSA_NO_PADDING);
+    unsigned long int sig_len = RSA_private_encrypt(RSA_size(rsa_private_key), hash, signature, rsa_private_key, RSA_NO_PADDING);
     if (sig_len <= 0) {
         ERR_print_errors_fp(stderr);
         return 1;
@@ -141,3 +141,4 @@ int main(int argc, char * argv[]) {
 
     fclose(sig_file);
 }
+
