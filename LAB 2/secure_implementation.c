@@ -34,9 +34,7 @@ void readFile(char* fname, unsigned char* dest_string){
     if(fptr != NULL) {
 
     // Read the content and print it
-    while(fgets(dest_string, MAX_INPUT_LENGTH, fptr)) {
-        1;
-    }
+    while(fgets((char *)dest_string, MAX_INPUT_LENGTH, fptr)) {}
 
     // If the file does not exist
     } else {
@@ -139,7 +137,7 @@ int main(int argc, char * argv[]) {
 
     printf("PASSWORD HASH:\n%s\n", hash_file);
     printf("SALT:\n %s\n", salt_file);
-    const size_t  sz_salt = strnlen(salt_file, MAX_INPUT_LENGTH);
+    const size_t  sz_salt = strnlen((char *)salt_file, MAX_INPUT_LENGTH);
 
     //concat input string and hash
     char salted_input[MAX_INPUT_LENGTH*2];
@@ -150,11 +148,11 @@ int main(int argc, char * argv[]) {
 
     // converting hash to string
 
-    const char *pos = hash_file;
+    const unsigned char *pos = hash_file;
     unsigned char val[32];
 
     for (size_t count = 0; count < sizeof val/sizeof *val; count++) {
-        sscanf(pos, "%2hhx", &val[count]);
+        sscanf((char *)pos, "%2hhx", &val[count]);
         pos += 2;
         return_value = return_value && (val[count] == buffer[count]);
     }
