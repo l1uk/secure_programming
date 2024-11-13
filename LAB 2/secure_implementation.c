@@ -25,7 +25,7 @@ RSA *load_public_key(const char *public_key_file) {
 
     return rsa;
 }
-void readFile(char* fname, char* dest_string){
+void readFile(char* fname, unsigned char* dest_string){
     FILE *fptr;
         // Open a file in read mode
     fptr = fopen(fname, "r");
@@ -53,22 +53,23 @@ int main(int argc, char * argv[]) {
 		return 1;
 	}
 
-	unsigned char buffer[SHA256_DIGEST_LENGTH];
+	unsigned char buffer[MAX_INPUT_LENGTH];
 
 	const size_t  sz = strnlen(argv[1], MAX_INPUT_LENGTH);
 	unsigned char in[MAX_INPUT_LENGTH];
-    unsigned char salt[MAX_INPUT_LENGTH];
+    unsigned char salt_file[MAX_INPUT_LENGTH];
     unsigned char hash_file[MAX_INPUT_LENGTH];
     int return_value = 1;
-    memset(salt, 0, MAX_INPUT_LENGTH);
+    memset(salt_file, 0, MAX_INPUT_LENGTH);
     memset(hash_file, 0, MAX_INPUT_LENGTH);
 	memset(in, 0, MAX_INPUT_LENGTH);
 	memcpy(in, argv[1], sz);
     printf("You entered \"%s\".\n", argv[1]);
 
-    readFile("salt.txt", salt);
-    readFile("hash.txt", hash_file);
+    readFile("salt.txt", salt_file);
 
+    readFile("hash.txt", hash_file);
+    printf("PASSWORD SALT:\n%s\n", salt_file);
     printf("Computing hash of the hash\n");
 
     FILE *fp = fopen("hash.txt", "rb");
@@ -85,10 +86,10 @@ int main(int argc, char * argv[]) {
     }
     fclose(fp);
 
-    unsigned char hash_hash[SHA256_DIGEST_LENGTH];
+    unsigned char hash_hash[MAX_INPUT_LENGTH];
     SHA256_Final(hash_hash, &sha256);
     printf("HASH OF THE HASH:\n");
-    int i;
+    long unsigned int i;
     for(i = 0; i < sizeof(hash_hash); i++) {
         printf("%0x", hash_hash[i]);
     }
@@ -110,7 +111,7 @@ int main(int argc, char * argv[]) {
     }
 
     unsigned char signature[RSA_size(rsa_public_key)];
-    int sig_len = fread(signature, 1, RSA_size(rsa_public_key), sig_file);
+    long unsigned int sig_len = fread(signature, 1, RSA_size(rsa_public_key), sig_file);
     if (sig_len <= 0) {
         perror("Error reading signature from file");
         fclose(sig_file);
@@ -135,13 +136,14 @@ int main(int argc, char * argv[]) {
 
     // Clean up
     RSA_free(rsa_public_key);
+
     printf("PASSWORD HASH:\n%s\n", hash_file);
-    printf("SALT:\n %s\n", salt);
-    const size_t  sz_salt = strnlen(salt, MAX_INPUT_LENGTH);
+    printf("SALT:\n %s\n", salt_file);
+    const size_t  sz_salt = strnlen(salt_file, MAX_INPUT_LENGTH);
 
     //concat input string and hash
     char salted_input[MAX_INPUT_LENGTH*2];
-    snprintf(salted_input, sizeof(salted_input), "%s%s", in, salt);
+    snprintf(salted_input, sizeof(salted_input), "%s%s", in, salt_file);
     printf("SALTED INPUT PASSWORD:\n%s\n", salted_input);
 
 	(void) SHA256((unsigned char *) salted_input, sz + sz_salt-1, buffer);
