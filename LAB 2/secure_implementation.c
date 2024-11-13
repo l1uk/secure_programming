@@ -5,9 +5,6 @@
 #include <openssl/err.h>
 #include <openssl/sha.h>
 #define MAX_INPUT_LENGTH 100
-
-extern unsigned char passwd_hash[SHA256_DIGEST_LENGTH];
-
 RSA *load_public_key(const char *public_key_file) {
     FILE *fp = fopen(public_key_file, "r");
     if (!fp) {
@@ -51,7 +48,7 @@ int main(int argc, char * argv[]) {
 		return 1;
 	}
 
-	unsigned char buffer[MAX_INPUT_LENGTH];
+	unsigned char buffer[SHA256_DIGEST_LENGTH];
 
 	const size_t  sz = strnlen(argv[1], MAX_INPUT_LENGTH);
 	unsigned char in[MAX_INPUT_LENGTH];
@@ -60,6 +57,7 @@ int main(int argc, char * argv[]) {
     int return_value = 1;
     memset(salt_file, 0, MAX_INPUT_LENGTH);
     memset(hash_file, 0, MAX_INPUT_LENGTH);
+    memset(buffer, 0, SHA256_DIGEST_LENGTH);
 	memset(in, 0, MAX_INPUT_LENGTH);
 	memcpy(in, argv[1], sz);
     printf("You entered \"%s\".\n", argv[1]);
