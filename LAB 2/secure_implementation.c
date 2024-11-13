@@ -1,13 +1,30 @@
-#include <openssl/sha.h>
 #include <stdio.h>
 #include <string.h>
-
+#include <openssl/rsa.h>
+#include <openssl/pem.h>
+#include <openssl/err.h>
+#include <openssl/sha.h>
 #define MAX_INPUT_LENGTH 100
 
 extern unsigned char passwd_hash[SHA256_DIGEST_LENGTH];
 
-//TODO: file signature verification https://pagefault.blog/2019/04/22/how-to-sign-and-verify-using-openssl/
+RSA *load_public_key(const char *public_key_file) {
+    FILE *fp = fopen(public_key_file, "r");
+    if (!fp) {
+        perror("Error opening public key file");
+        return NULL;
+    }
 
+    RSA *rsa = PEM_read_RSA_PUBKEY(fp, NULL, NULL, NULL);
+    fclose(fp);
+
+    if (!rsa) {
+        ERR_print_errors_fp(stderr);
+        return NULL;
+    }
+
+    return rsa;
+}
 void readFile(char* fname, char* dest_string){
     FILE *fptr;
         // Open a file in read mode
@@ -41,19 +58,85 @@ int main(int argc, char * argv[]) {
 	const size_t  sz = strnlen(argv[1], MAX_INPUT_LENGTH);
 	unsigned char in[MAX_INPUT_LENGTH];
     unsigned char salt[MAX_INPUT_LENGTH];
-    unsigned char hash[MAX_INPUT_LENGTH];
+    unsigned char hash_file[MAX_INPUT_LENGTH];
     int return_value = 1;
     memset(salt, 0, MAX_INPUT_LENGTH);
-    memset(hash, 0, MAX_INPUT_LENGTH);
+    memset(hash_file, 0, MAX_INPUT_LENGTH);
 	memset(in, 0, MAX_INPUT_LENGTH);
 	memcpy(in, argv[1], sz);
     printf("You entered \"%s\".\n", argv[1]);
 
     readFile("salt.txt", salt);
-    readFile("hash.txt", hash);
+    readFile("hash.txt", hash_file);
 
-    printf("PASSWORD HASH:\n%s\n", hash);
-    printf("SALT: %s\n", salt);
+    printf("Computing hash of the hash\n");
+
+    FILE *fp = fopen("hash.txt", "rb");
+    if (!fp) {
+        perror("Error opening file");
+        return 1;
+    }
+    SHA256_CTX sha256;
+    SHA256_Init(&sha256);
+    unsigned char buf[1024];
+    size_t len;
+    while ((len = fread(buf, 1, 1024, fp)) > 0) {
+        SHA256_Update(&sha256, buf, len);
+    }
+    fclose(fp);
+
+    unsigned char hash_hash[SHA256_DIGEST_LENGTH];
+    SHA256_Final(hash_hash, &sha256);
+    printf("HASH OF THE HASH:\n");
+    int i;
+    for(i = 0; i < sizeof(hash_hash); i++) {
+        printf("%0x", hash_hash[i]);
+    }
+    printf("\n");
+
+    printf("Verifying signature\n");
+
+    RSA *rsa_public_key = load_public_key("public_key.pem");
+    if (!rsa_public_key) {
+        ERR_print_errors_fp(stderr);
+        return 1;
+    }
+
+    // Read the signature from the file
+    FILE *sig_file = fopen("signature.bin", "rb");
+    if (!sig_file) {
+        perror("Error opening signature file");
+        return 1;
+    }
+
+    unsigned char signature[RSA_size(rsa_public_key)];
+    int sig_len = fread(signature, 1, RSA_size(rsa_public_key), sig_file);
+    if (sig_len <= 0) {
+        perror("Error reading signature from file");
+        fclose(sig_file);
+        return 1;
+    }
+    fclose(sig_file);
+
+    printf("SIGNATURE READ FROM FILE:\n");
+    for(i = 0; i < sizeof(signature); i++) {
+        printf("%0x", signature[i]);
+    }
+    printf("\n");
+
+    int result = RSA_public_decrypt(RSA_size(rsa_public_key), signature, hash_hash, rsa_public_key, RSA_NO_PADDING);
+    if (result == -1) {
+        ERR_print_errors_fp(stderr);
+        printf("Signature verification failed.\n");
+        return 1;
+    }
+
+    printf("Signature verified successfully.\n");
+
+    // Clean up
+    RSA_free(rsa_public_key);
+    printf("PASSWORD HASH:\n%s\n", hash_file);
+    printf("SALT:\n %s\n", salt);
     const size_t  sz_salt = strnlen(salt, MAX_INPUT_LENGTH);
 
     //concat input string and hash
@@ -65,7 +148,7 @@ int main(int argc, char * argv[]) {
 
     // converting hash to string
 
-    const char *pos = hash;
+    const char *pos = hash_file;
     unsigned char val[32];
 
     for (size_t count = 0; count < sizeof val/sizeof *val; count++) {
@@ -74,7 +157,7 @@ int main(int argc, char * argv[]) {
         return_value = return_value && (val[count] == buffer[count]);
     }
     printf("ENTERED PASSWORD HASH:\n");
-    int i;
+    //int i;
     for(i = 0; i < sizeof(buffer); i++) {
         printf("%0x", buffer[i]);
     }
