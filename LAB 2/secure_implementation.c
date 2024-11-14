@@ -4,14 +4,15 @@
 #include <openssl/pem.h>
 #include <openssl/err.h>
 #include <openssl/sha.h>
+
 #define MAX_INPUT_LENGTH 100
+
 RSA *load_public_key(const char *public_key_file) {
     FILE *fp = fopen(public_key_file, "r");
     if (!fp) {
         perror("Error opening public key file");
         return NULL;
     }
-
     RSA *rsa = PEM_read_RSA_PUBKEY(fp, NULL, NULL, NULL);
     fclose(fp);
 
@@ -19,72 +20,52 @@ RSA *load_public_key(const char *public_key_file) {
         ERR_print_errors_fp(stderr);
         return NULL;
     }
-
     return rsa;
 }
-void readFile(char* fname, unsigned char* dest_string){
-    FILE *fptr;
-        // Open a file in read mode
-    fptr = fopen(fname, "r");
-
-    // If the file exist
-    if(fptr != NULL) {
-
-    // Read the content and print it
-    while(fgets((char *)dest_string, MAX_INPUT_LENGTH, fptr)) {}
-
-    // If the file does not exist
+void readFile(char* fname, unsigned char* dest_string, int len){
+    FILE *fp = fopen(fname, "r");
+    if (fp) {
+        fgets((char *)dest_string, len, fp);
+        fclose(fp);
     } else {
-        printf("Not able to open the file.");
+        perror("Error opening file");
     }
-
-    // Close the file
-    fclose(fptr);
 }
 
-int main(int argc, char * argv[]) {
-	if (argc < 2){
-		printf("Error, missing argument");
-		return 1;
-	}
+unsigned char *computeSHA256(const unsigned char *data, size_t dataLen) {
+    SHA256_CTX sha256;
+    unsigned char *hash = malloc(dataLen);
+    SHA256_Init(&sha256);
+    SHA256_Update(&sha256, data, dataLen);
+    SHA256_Final(hash, &sha256);
+    return hash;
+}
 
-	unsigned char buffer[SHA256_DIGEST_LENGTH];
-
-	const size_t  sz = strnlen(argv[1], MAX_INPUT_LENGTH);
-	unsigned char in[MAX_INPUT_LENGTH];
-    unsigned char salt_file[MAX_INPUT_LENGTH];
-    unsigned char hash_file[MAX_INPUT_LENGTH];
-    int return_value = 1;
-    memset(salt_file, 0, MAX_INPUT_LENGTH);
-    memset(hash_file, 0, MAX_INPUT_LENGTH);
-    memset(buffer, 0, SHA256_DIGEST_LENGTH);
-	memset(in, 0, MAX_INPUT_LENGTH);
-	memcpy(in, argv[1], sz);
-    printf("You entered \"%s\".\n", argv[1]);
-
-    readFile("salt.txt", salt_file);
-
-    readFile("hash.txt", hash_file);
-    printf("PASSWORD SALT:\n%s\n", salt_file);
-    printf("Computing hash of the hash\n");
-
-    FILE *fp = fopen("hash.txt", "rb");
-    if (!fp) {
-        perror("Error opening file");
+int main(int argc, char *argv[]) {
+    if (argc < 2) {
+        printf("Error, missing argument\n");
         return 1;
     }
-    SHA256_CTX sha256;
-    unsigned char buf[1024];
-    size_t len;
 
-    SHA256_Init(&sha256);
-    while ((len = fread(buf, 1, 1024, fp)) > 0) {
-        SHA256_Update(&sha256, buf, len);
-    }
-    fclose(fp);
+    const size_t  sz = strnlen(argv[1], MAX_INPUT_LENGTH);
+    unsigned char in[MAX_INPUT_LENGTH];
+	memset(in, 0, MAX_INPUT_LENGTH);
+	memcpy(in, argv[1], sz);
 
-    unsigned char hash_hash[MAX_INPUT_LENGTH];
-    SHA256_Final(hash_hash, &sha256);
+    printf("You entered \"%s\".\n", in);
+    unsigned char salt[MAX_INPUT_LENGTH];
+    unsigned char hash[MAX_INPUT_LENGTH];
+    unsigned char hash_hash[SHA256_DIGEST_LENGTH];
+
+    readFile("salt.txt", salt, MAX_INPUT_LENGTH);
+    readFile("hash.txt", hash, MAX_INPUT_LENGTH);
+    printf("PASSWORD SALT:\n%s\n", salt);
+    // Compute hash of the hash
+    unsigned char *hash_ptr = computeSHA256(hash, strlen((char *)hash));
+    memset(hash_hash, 0, SHA256_DIGEST_LENGTH);
+    memcpy(hash_hash, hash_ptr, SHA256_DIGEST_LENGTH);
+
+    free(hash_ptr);
     printf("HASH OF THE HASH:\n");
     long unsigned int i;
     for(i = 0; i < sizeof(hash_hash); i++) {
@@ -92,6 +73,7 @@ int main(int argc, char * argv[]) {
     }
     printf("\n");
 
+    // Verify signature
     printf("Verifying signature\n");
 
     RSA *rsa_public_key = load_public_key("public_key.pem");
@@ -121,53 +103,51 @@ int main(int argc, char * argv[]) {
         printf("%0x", signature[i]);
     }
     printf("\n");
-
-    int result = RSA_public_decrypt(RSA_size(rsa_public_key), signature, hash_hash, rsa_public_key, RSA_NO_PADDING);
+    unsigned char RSA_output[RSA_size(rsa_public_key)];
+    int result = RSA_public_decrypt(RSA_size(rsa_public_key), signature, RSA_output, rsa_public_key, RSA_NO_PADDING);
     if (result == -1) {
         ERR_print_errors_fp(stderr);
         printf("Signature verification failed.\n");
         return 1;
     }
-
-    printf("Signature verified successfully.\n");
-
-    // Clean up
     RSA_free(rsa_public_key);
 
-    printf("PASSWORD HASH:\n%s\n", hash_file);
-    printf("SALT:\n %s\n", salt_file);
-    const size_t  sz_salt = strnlen((char *)salt_file, MAX_INPUT_LENGTH);
+    printf("Signature verified successfully.\n");
+    // Clean up
+    //RSA_free(rsa_public_key);
+    printf("SALT:\n%s\n", salt);
+    // Compute salted input hash
+    char saltedInput[MAX_INPUT_LENGTH * 2];
+    snprintf(saltedInput, sizeof(saltedInput), "%s%s", in, salt);
 
-    //concat input string and hash
-    char salted_input[MAX_INPUT_LENGTH*2];
-    snprintf(salted_input, sizeof(salted_input), "%s%s", in, salt_file);
-    printf("SALTED INPUT PASSWORD:\n%s\n", salted_input);
+    printf("SALTED INPUT PASSWORD:\n%s\n", saltedInput);
 
-	(void) SHA256((unsigned char *) salted_input, sz + sz_salt-1, buffer);
+    unsigned char *inputHash = computeSHA256((unsigned char *)saltedInput, strlen(saltedInput)-1);
 
-    // converting hash to string
 
-    const unsigned char *pos = hash_file;
+    printf("ENTERED PASSWORD HASH:\n");
+    for(i = 0; i < SHA256_DIGEST_LENGTH; i++) {
+        printf("%0x", inputHash[i]);
+    }
+    printf("\n");
+    printf("READ PASSWORD HASH:\n%s\n", hash);
+
+    // Compare hashes
+    const unsigned char *pos = hash;
     unsigned char val[32];
+    int return_value = 1;
 
     for (size_t count = 0; count < sizeof val/sizeof *val; count++) {
         sscanf((char *)pos, "%2hhx", &val[count]);
         pos += 2;
-        return_value = return_value && (val[count] == buffer[count]);
+        return_value = return_value && (val[count] == inputHash[count]);
     }
-    printf("ENTERED PASSWORD HASH:\n");
-    //int i;
-    for(i = 0; i < sizeof(buffer); i++) {
-        printf("%0x", buffer[i]);
-    }
-    printf("\n");
-
     if(return_value == 1)
         printf("ACCESS GRANTED!");
     else
         printf("ACCESS DENIED");
+    free(inputHash);
 
     printf("\n");
-
-	return return_value;
+    return !return_value;
 }
