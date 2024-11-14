@@ -74,9 +74,10 @@ int main(int argc, char * argv[]) {
         return 1;
     }
     SHA256_CTX sha256;
-    SHA256_Init(&sha256);
     unsigned char buf[1024];
     size_t len;
+
+    SHA256_Init(&sha256);
     while ((len = fread(buf, 1, 1024, fp)) > 0) {
         SHA256_Update(&sha256, buf, len);
     }
