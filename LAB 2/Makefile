@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS= -Wall -Wextra -O2 -lcrypto -Wno-deprecated-declarations -fstack-protector
+CFLAGS= -Wall -Wextra -O2 -lcrypto -Wno-deprecated-declarations -fstack-protector -z noexecstack -D_FORTIFY_SOURCE=2
 
 all: secure_implementation sign_file
 
