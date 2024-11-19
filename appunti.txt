@@ -1,0 +1,65 @@
+FUNCTIONING:
+It is easy to understand the program by input fuzzing. By reading the code, the door should open when two equal values that are sent as parameters are read. Before checking for the equality, a confirmation is prompted.
+
+VULNERABILITIES:
+
+1. It is possible to perform a buffer overflow by flooding the scanf in the validate() method. The buffer size is fixed and there is not check.
+
+2. If you input two non-numerical values, they are always considered equal because of the strtol() method that returns 0 when called with a non-numerical value.
+
+3. The program has unused methods, that can be potentially harmful (i.e. opening a high priviliges shell).
+
+4. The libraries are dinamically linked, so a supply chain attack is feasible, e.g. using the LD_PRELOAD option.
+
+ROOT CAUSES:
+
+1. The problem is the scanf() call in the validate() method. It is known to be unsafe because it does not check the buffer length, allowing the user to write after the buffer and for instance overwriting the return address of the function.
+
+2. No input type check is performed on the values, so every non-integer value is considered equal because strtol() always returns 0 when no conversion is performed.
+
+EXPLOITS:
+
+1. We can override the return address for the validate() method by proiding a string that contains the address of the fnR() function, which supposedly opens an interactive root shell.
+
+2. We can make the door open by providing non-compatible values, either by directly feeding the program or by tampering or compromising the sensors which could potentially send a string error value.
+
+MITIGATIONS:
+
+1.
+    CODE:
+        Use fgets() instead of scanf() that is considered safe because it performs buffer length checks.
+
+        Perform type check on string input, and raise an error if the values are invalid.
+
+        Remove unused funciton. Remove root shells.
+
+    COMPILATION:
+        -fstack-protector (ADD CANARIES https://developer.arm.com/documentation/dui0774/l/Compiler-Command-line-Options/-fstack-protector---fstack-protector-all---fstack-protector-strong---fno-stack-protector)
+
+        -fsanitize=address (CHECKS FOR CONSISENCY OF ADDRESSES, https://wiki.gentoo.org/wiki/AddressSanitizer)
+
+        -fPIE (ASLR, https://stackoverflow.com/questions/2463150/what-is-the-fpie-option-for-position-independent-executables-in-gcc-and-ld)
+
+        -l
+
+    SYSTEM:
+        Ensure physical security of sensors and cables, in order to prevent tampering.
+1.
+    CODE:
+        Use fgets() instead of scanf() that is considered safe because it performs buffer length checks.
+
+        Perform type check on string input, and raise an error if the values are invalid.
+
+        Remove unused funciton. Remove root shells.
+
+    COMPILATION:
+        -fstack-protector (ADD CANARIES https://developer.arm.com/documentation/dui0774/l/Compiler-Command-line-Options/-fstack-protector---fstack-protector-all---fstack-protector-strong---fno-stack-protector)
+
+        -fsanitize=address (CHECKS FOR CONSISENCY OF ADDRESSES, https://wiki.gentoo.org/wiki/AddressSanitizer)
+
+        -fPIE (ASLR, https://stackoverflow.com/questions/2463150/what-is-the-fpie-option-for-position-independent-executables-in-gcc-and-ld)
+
+        -l
+
+    SYSTEM:
+        Ensure physical security of sensors and cables, in order to prevent tampering.
