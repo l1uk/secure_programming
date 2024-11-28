@@ -13,11 +13,15 @@ int copy_file(const char * in, const char * out) {
     fds[0] = fopen(in, "r");
     fds[1] = fopen(out, "w");
 
+    // add NULL check, in case fopen fails
+
     int running = 1;
 
     while (running) {
+        //turn buffer size into consant
         unsigned char buffer[2048];
         const size_t  count = fread(buffer, sizeof(unsigned char), 2048, fds[0]);
+        // could case memory leaks if it fails!
         assert(count > 0);
         const size_t writn = fwrite(buffer, sizeof(unsigned char), count, fds[1]);
 
