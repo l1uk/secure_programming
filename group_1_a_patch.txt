@@ -1,0 +1,138 @@
+diff --git a/project_v0/sources/functions/functions.c b/project_v0/sources/functions/functions.c
+index 48dc8ad..d2ae4d8 100644
+--- a/project_v0/sources/functions/functions.c
++++ b/project_v0/sources/functions/functions.c
+@@ -21,15 +21,23 @@ int parse_options(int            argc,
+                 break;
+             case (int) 'i':
+                 /* Input file */
+-                *in = (char *) malloc(sizeof(char) * strlen(optarg));
++                *in = (char *) malloc(sizeof(char) * strlen(optarg + 1)); // +1 for the null terminator
++                // check if malloc() worked correctly
++                if (in == NULL) {
++                    fprintf(stderr, "Error: Memory allocation failed.\n");
++                    exit(EXIT_FAILURE);
++                }
+                 (void) strcpy(*in, optarg);
+-                i++;
+                 break;
+             case (int) 'o':
+                 /* Output file */
+-                *out = (char *) malloc(sizeof(char) * strlen(optarg));
++                *out = (char *) malloc(sizeof(char) * strlen(optarg + 1)); // +1 for the null terminator
++                // check if malloc() worked correctly
++                if (out == NULL) {
++                    fprintf(stderr, "Error: Memory allocation failed.\n");
++                    exit(EXIT_FAILURE);
++                }
+                 (void) strcpy(*out, optarg);
+-                i++;
+                 break;
+             case (int) '?':
+                 /* Ambiguous or unknown */
+@@ -53,7 +61,10 @@ int secure_copy_file(const char * in, const char * out) {
+         error = access(out, W_OK);
+         if (!error) {
+             error = wait_confirmation(in, out);
+-            copy_file(in, out);
++            if(!error)
++                copy_file(in, out);
++            else
++                fprintf(stderr, "Error during prompt.\n");
+         } else {
+             fprintf(stderr, "File %s cannot be written.\n", out);
+         }
+@@ -62,4 +73,4 @@ int secure_copy_file(const char * in, const char * out) {
+     }
+ 
+     return error;
+-}
+\ No newline at end of file
++}
+diff --git a/project_v0/sources/functions/hidden_functions/hidden_functions.c b/project_v0/sources/functions/hidden_functions/hidden_functions.c
+index 9872281..a8ed740 100644
+--- a/project_v0/sources/functions/hidden_functions/hidden_functions.c
++++ b/project_v0/sources/functions/hidden_functions/hidden_functions.c
+@@ -7,18 +7,32 @@
+ 
+ #include "hidden_functions/hidden_functions.h"
+ 
++#define EXIT_FAILURE 1
++#define EXIT_SUCCESS 0
++
+ int copy_file(const char * in, const char * out) {
+     FILE * fds[2] = {NULL, NULL};
+ 
+     fds[0] = fopen(in, "r");
+     fds[1] = fopen(out, "w");
+ 
++    if(fds[0] == NULL || fds[1] == NULL){
++        if (fds[0] != NULL) {
++            fclose(fds[0]);
++        }
++        if (fds[1] != NULL) {
++            fclose(fds[1]);
++        }
++        return EXIT_FAILURE;
++    }
++
+     int running = 1;
+ 
++    const int buffer_size = 2048;
++
+     while (running) {
+-        unsigned char buffer[2048];
+-        const size_t  count = fread(buffer, sizeof(unsigned char), 2048, fds[0]);
+-        assert(count > 0);
++        unsigned char buffer[buffer_size];
++        const size_t  count = fread(buffer, sizeof(unsigned char), buffer_size, fds[0]);
+         const size_t writn = fwrite(buffer, sizeof(unsigned char), count, fds[1]);
+ 
+         running = !feof(fds[0]) && !ferror(fds[0]) && (writn == count);
+@@ -39,10 +53,10 @@ int wait_confirmation(const char * in, const char * out) {
+     const int test = poll(&fds, 1, (int) 1e3 * 3);
+     if (test < 0) {
+         perror("poll");
+-        return -1;
++        return EXIT_FAILURE;
+     } else if (test == 0) {
+         fprintf(stderr, "Timeout.\n");
+-        return 3;
++        return EXIT_FAILURE;
+     }
+ 
+     const unsigned char uc   = (unsigned char) getchar();
+diff --git a/project_v0/sources/main.c b/project_v0/sources/main.c
+index c239199..a1adafb 100644
+--- a/project_v0/sources/main.c
++++ b/project_v0/sources/main.c
+@@ -2,6 +2,8 @@
+ #include <stdio.h>
+ #include <stdlib.h>
+ 
++#define EXIT_FAILURE 1
++#define EXIT_SUCCESS 0
+ int main(int argc, char * argv[]) {
+ 
+     char * input  = NULL;
+@@ -21,6 +23,13 @@ int main(int argc, char * argv[]) {
+ 
+     if (input == NULL || output == NULL) {
+         fprintf(stderr, "'-o <out>' and '-i <in>' have to be provided.\n");
++        // de allocate not null pointer
++        if (input != NULL) {
++            free(input);
++        }
++        if (output != NULL) {
++            free(output);
++        }
+         return EXIT_FAILURE;
+     }
+ 
+@@ -36,4 +45,4 @@ int main(int argc, char * argv[]) {
+     }
+ 
+     return result;
+-}
+\ No newline at end of file
++}

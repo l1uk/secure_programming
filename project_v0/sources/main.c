@@ -2,6 +2,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#define EXIT_FAILURE 1
+#define EXIT_SUCCESS 0
 int main(int argc, char * argv[]) {
 
     char * input  = NULL;
@@ -21,6 +23,13 @@ int main(int argc, char * argv[]) {
 
     if (input == NULL || output == NULL) {
         fprintf(stderr, "'-o <out>' and '-i <in>' have to be provided.\n");
+        // de allocate not null pointer
+        if (input != NULL) {
+            free(input);
+        }
+        if (output != NULL) {
+            free(output);
+        }
         return EXIT_FAILURE;
     }
 

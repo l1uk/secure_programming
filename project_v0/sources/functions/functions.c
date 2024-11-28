@@ -21,15 +21,23 @@ int parse_options(int            argc,
                 break;
             case (int) 'i':
                 /* Input file */
-                *in = (char *) malloc(sizeof(char) * strlen(optarg));
+                *in = (char *) malloc(sizeof(char) * strlen(optarg + 1)); // +1 for the null terminator
+                // check if malloc() worked correctly
+                if (in == NULL) {
+                    fprintf(stderr, "Error: Memory allocation failed.\n");
+                    exit(EXIT_FAILURE);
+                }
                 (void) strcpy(*in, optarg);
-                i++;
                 break;
             case (int) 'o':
                 /* Output file */
-                *out = (char *) malloc(sizeof(char) * strlen(optarg));
+                *out = (char *) malloc(sizeof(char) * strlen(optarg + 1)); // +1 for the null terminator
+                // check if malloc() worked correctly
+                if (out == NULL) {
+                    fprintf(stderr, "Error: Memory allocation failed.\n");
+                    exit(EXIT_FAILURE);
+                }
                 (void) strcpy(*out, optarg);
-                i++;
                 break;
             case (int) '?':
                 /* Ambiguous or unknown */
@@ -53,7 +61,10 @@ int secure_copy_file(const char * in, const char * out) {
         error = access(out, W_OK);
         if (!error) {
             error = wait_confirmation(in, out);
-            copy_file(in, out);
+            if(!error)
+                copy_file(in, out);
+            else
+                fprintf(stderr, "Error during prompt.\n");
         } else {
             fprintf(stderr, "File %s cannot be written.\n", out);
         }
