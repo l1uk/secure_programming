@@ -1,8 +1,18 @@
 diff --git a/project_v0/sources/functions/functions.c b/project_v0/sources/functions/functions.c
-index 48dc8ad..d2ae4d8 100644
+index 48dc8ad..bca7436 100644
 --- a/project_v0/sources/functions/functions.c
 +++ b/project_v0/sources/functions/functions.c
-@@ -21,15 +21,23 @@ int parse_options(int            argc,
+@@ -8,6 +8,9 @@
+ #include "functions.h"
+ #include "hidden_functions/hidden_functions.h"
+ 
++#define EXIT_FAILURE 1
++#define EXIT_SUCCESS 0
++
+ int parse_options(int            argc,
+                   char * const * argv,
+                   char ** __restrict in,
+@@ -21,15 +24,23 @@ int parse_options(int            argc,
                  break;
              case (int) 'i':
                  /* Input file */
@@ -30,19 +40,31 @@ index 48dc8ad..d2ae4d8 100644
                  break;
              case (int) '?':
                  /* Ambiguous or unknown */
-@@ -53,7 +61,10 @@ int secure_copy_file(const char * in, const char * out) {
+@@ -48,18 +59,24 @@ int parse_options(int            argc,
+ 
+ int secure_copy_file(const char * in, const char * out) {
+     int error = 0;
+-    error     = access(in, R_OK);
++    // moved prompt before performing acess check
++    // this is to avoid an attack where the file is changed
++    // it is copied, but after the check is performed.
++    error = wait_confirmation(in, out);
+     if (!error) {
          error = access(out, W_OK);
          if (!error) {
-             error = wait_confirmation(in, out);
+-            error = wait_confirmation(in, out);
 -            copy_file(in, out);
++            error = access(in, R_OK);
 +            if(!error)
 +                copy_file(in, out);
 +            else
-+                fprintf(stderr, "Error during prompt.\n");
++                fprintf(stderr, "File %s cannot be read.\n", in);
          } else {
              fprintf(stderr, "File %s cannot be written.\n", out);
          }
-@@ -62,4 +73,4 @@ int secure_copy_file(const char * in, const char * out) {
+     } else {
+-        fprintf(stderr, "File %s cannot be read.\n", in);
++        fprintf(stderr, "Error during prompt.\n");
      }
  
      return error;
