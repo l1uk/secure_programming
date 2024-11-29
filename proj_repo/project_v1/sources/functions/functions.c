@@ -46,14 +46,24 @@ int parse_options(int            argc,
     return EXIT_SUCCESS;
 }
 
-int secure_copy_file(const char * in, const char * out) {
-    int error = 0;
-    error     = access(in, R_OK);
+int secure_hash_file(const char * in, const char * out) {
+    int error = access(out, F_OK);
+    if (error) {
+        FILE * fdtmp = fopen(out, "w");
+        if (fdtmp == NULL) {
+            perror("fopen");
+            return -1;
+        }
+        fclose(fdtmp);
+    }
+
+    error = access(in, R_OK);
     if (!error) {
-        error = access(out, W_OK);
+        int error = access(out, W_OK);
         if (!error) {
-            error = wait_confirmation(in, out);
-            copy_file(in, out);
+            unsigned char hash[32];
+            (void) compute_confirmation(in, hash);
+            (void) write_file(hash, out);
         } else {
             fprintf(stderr, "File %s cannot be written.\n", out);
         }
